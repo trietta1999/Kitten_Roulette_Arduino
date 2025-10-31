@@ -9,8 +9,8 @@
 #include "CommonDataType.h"
 #include "ArduinoJson-v7.4.1.h"
 
-void InitData();
-void CommonServiceProcess();
+void InitService();
+void ServiceProcess();
 JsonDocument ProcessRequest(uint32_t, JsonDocument);
 JsonDocument CommonSendRequest(uint32_t);
 JsonDocument CommonSendRequestWithData(uint32_t, JsonDocument);

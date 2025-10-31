@@ -8,12 +8,14 @@
 #ifdef _WIN64
 #include <Windows.h>
 #include <iostream>
-#include <iomanip>
 #include <thread>
 #include <sstream>
 #else
 #include <esp_random.h>
 #endif
+
+std::string inputConsole;
+std::vector<std::string> listInputParam;
 
 #ifdef _WIN64
 void AttachConsoleWindow()
@@ -24,19 +26,18 @@ void AttachConsoleWindow()
     freopen_s(&fp, "CONOUT$", "w", stderr);
     freopen_s(&fp, "CONIN$", "r", stdin);
 }
+#endif
 
 void DebugConsoleProcess()
 {
     // Debug console
-    if (InputParamList.GetState())
+    if (listInputParam.size())
     {
         try {
-            auto inputParams = InputParamList.GetValue();
-
-            // Test show message box
-            if (inputParams.at(0) == "test")
+            // Test
+            if (listInputParam.at(0) == "test")
             {
-                ::MessageBox(NULL, L"Test show message box", L"Test", MB_OK);
+                debug_println("Test OK");
             }
 
             debug_println("Process debug data done!");
@@ -46,72 +47,71 @@ void DebugConsoleProcess()
             debug_println("Process debug data fail! Try again!");
         }
 
-        InputParamList.ResetState();
+        listInputParam.clear();
     }
 }
-#endif
 
 void CommonBeep(uint16_t frequency, uint16_t duration)
 {
-//#ifdef _WIN64
-//    ::Beep(frequency, duration);
-//#else
-//    HardwareBeep(frequency, duration);
-//#endif
+    //#ifdef _WIN64
+    //    ::Beep(frequency, duration);
+    //#else
+    //    HardwareBeep(frequency, duration);
+    //#endif
 }
 
-void InitData()
+void InitService()
 {
-//#ifndef _WIN64
-//    HardwareSetup();
-//#endif
-
 #ifdef _WIN64
     AttachConsoleWindow();
 #endif
 
-    // Print init data
 #ifdef _WIN64
+    std::thread([] {
+        std::string input;
 
+        while (true)
+        {
+            std::getline(std::cin, input);
+
+            if (!input.empty())
+            {
+                inputConsole = input;
+            }
+        }
+        }).detach();
 #endif
 }
 
-void CommonServiceProcess()
+void ServiceProcess()
 {
-#ifdef _WIN64
-    std::thread([] {
-        std::string inputConsole;
-
-        try
-        {
-            std::getline(std::cin, inputConsole);
-
-            if (!inputConsole.empty())
-            {
-                std::istringstream iss(inputConsole);
-                std::string param;
-                std::vector<std::string> inputParams;
-
-                while (iss >> param) {
-                    inputParams.push_back(param);
-                }
-
-                InputParamList.SetValue(inputParams);
-
-                DebugConsoleProcess();
-            }
-        }
-        catch (...)
-        {
-            debug_println("Process debug data fail! Try again!");
-        }
-        }).detach();
-#else
-    // Read data from serial
+#ifndef _WIN64
     if (Serial.available()) {
         String read = Serial.readStringUntil('\n');
+        inputConsole = read.c_str();
     }
 #endif
+
+    try
+    {
+        if (!inputConsole.empty())
+        {
+            std::istringstream iss(inputConsole);
+            std::string param;
+
+            while (iss >> param) {
+                listInputParam.push_back(param);
+            }
+
+            DebugConsoleProcess();
+        }
+    }
+    catch (...)
+    {
+        debug_println("Process debug data fail! Try again!");
+    }
+
+    inputConsole.clear();
 }
 
 JsonDocument ProcessRequest(uint32_t msg, JsonDocument jsonDocIn)
